@@ -1,0 +1,15 @@
+[Unit]
+Description=Story to documents website
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/pipelines/TEST_CASE_PIPELINE-1/pipeline_ui
+ExecStart=/opt/pipelines/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

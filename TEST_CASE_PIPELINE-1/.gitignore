@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets. .env.example currently holds a live Bedrock token,
+# so it stays out of git until that token is replaced with a placeholder.
+.env
+.env.*
+
+# Generated outputs
+output/
+outputs/
+
+# Generated PDFs
+*.pdf
+
+# Logs
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

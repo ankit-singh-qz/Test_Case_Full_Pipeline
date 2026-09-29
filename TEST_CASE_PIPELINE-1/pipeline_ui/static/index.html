@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Story to documents</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1ea;
+      --ink: #1c1915;
+      --muted: #5e584e;
+      --line: #ddd6c8;
+      --card: #fffcf7;
+      --accent: #1f4d3a;
+      --accent-ink: #f7f4ee;
+      --danger: #8c2f2f;
+      --warn: #8a5a12;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.5 "Segoe UI", Georgia, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--line);
+      background: var(--card);
+    }
+    header h1 { margin: 0; font-size: 1.35rem; font-weight: 650; }
+    header p { margin: 0.25rem 0 0; color: var(--muted); }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      align-items: start;
+    }
+    aside, main, .card { min-width: 0; }
+    aside, .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    aside h2, .card h2 { margin: 0 0 0.5rem; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    #run-list { list-style: none; margin: 0; padding: 0; }
+    #run-list button {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 0;
+      border-radius: 8px;
+      padding: 0.45rem 0.5rem;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
+    }
+    #run-list button strong { display: block; font-size: 0.92rem; }
+    #run-list button span { color: var(--muted); font-size: 0.8rem; }
+    #run-list button[aria-current="true"] { background: #e7f0ea; }
+    label { display: block; font-weight: 650; margin-bottom: 0.35rem; }
+    textarea, input[type="password"] {
+      width: 100%;
+      padding: 0.6rem 0.7rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 180px; resize: vertical; }
+    .actions, .files, .stages { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .actions { margin-top: 0.75rem; }
+    button.primary, a.file {
+      background: var(--accent);
+      color: var(--accent-ink);
+      border: 0;
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button.primary:disabled { background: #b7b1a6; cursor: not-allowed; }
+    button.secondary {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.linkish {
+      background: transparent;
+      border: 0;
+      color: var(--accent);
+      font: inherit;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .pill {
+      font-size: 0.85rem;
+      border-radius: 8px;
+      padding: 0.4rem 0.85rem;
+      min-width: 7.5rem;
+      text-align: center;
+      background: #e6e2da;
+      color: #6e685f;
+      border: 1px solid #d5d0c6;
+    }
+    .pill.current {
+      color: var(--ink);
+      animation: stage-pulse 1.1s ease-in-out infinite;
+    }
+    .pill.progress {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.28rem;
+      min-width: 9.5rem;
+      animation: none;
+      color: var(--ink);
+    }
+    .pill-name, .pct { position: relative; }
+    .pct { font-size: 0.75rem; text-align: center; color: #4a453e; }
+    .bar {
+      display: block;
+      height: 8px;
+      border-radius: 999px;
+      background: #d9d4ca;
+      overflow: hidden;
+    }
+    .bar-fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: #6e685f;
+      transition: width 1.1s linear;
+    }
+    .pill.done { background: #e6e2da; color: #6e685f; }
+    .pill.failed { background: #f3e4e4; color: var(--danger); animation: none; }
+    @keyframes stage-pulse {
+      0%, 100% { opacity: 1; box-shadow: inset 0 0 0 1px #b7b1a6; }
+      50% { opacity: 0.45; box-shadow: inset 0 0 0 2px #6e685f; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pill.current { animation: none; box-shadow: inset 0 0 0 2px #6e685f; }
+      .bar-fill { transition: none; }
+    }
+    .banner {
+      background: #f8e4e4;
+      color: var(--danger);
+      border-radius: 8px;
+      padding: 0.55rem 0.7rem;
+      margin-bottom: 0.75rem;
+    }
+    pre.log {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #1c1915;
+      color: #f4f1ea;
+      border-radius: 8px;
+      padding: 0.7rem;
+      max-height: 220px;
+      overflow: auto;
+      font-size: 0.82rem;
+      margin: 0.75rem 0 0;
+    }
+    .hidden { display: none; }
+    #login { max-width: 420px; margin: 2rem auto; }
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Story to documents</h1>
+      <p>Paste a refined user story. Generate writes the FDD, TDD, test design, and test cases.</p>
+    </div>
+    <button class="linkish hidden" type="button" id="logout">Sign out</button>
+  </header>
+  <section class="card hidden" id="login">
+    <h2>Password</h2>
+    <form id="login-form">
+      <label for="password">Site password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <div class="actions">
+        <button class="primary" type="submit">Continue</button>
+      </div>
+    </form>
+    <p class="banner hidden" id="login-error"></p>
+  </section>
+  <div class="layout hidden" id="app">
+    <aside>
+      <h2>Recent runs</h2>
+      <ul id="run-list"></ul>
+    </aside>
+    <main>
+      <p class="banner hidden" id="banner"></p>
+      <section class="card">
+        <label for="story">Refined user story</label>
+        <textarea id="story" placeholder="Paste the refined story here."></textarea>
+        <div class="actions">
+          <button class="primary" type="button" id="generate" disabled>Generate</button>
+          <button class="secondary hidden" type="button" id="new-story">New story</button>
+        </div>
+      </section>
+      <section class="card" style="margin-top: 0.75rem;">
+        <h2 id="progress-title">Progress</h2>
+        <div class="stages" id="stages"></div>
+        <p class="banner hidden" id="run-error"></p>
+        <pre class="log hidden" id="log"></pre>
+        <div class="files" id="files" style="margin-top: 0.75rem;"></div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const STAGES = ["FDD", "TDD", "test design", "test cases"];
+    const STAGE_LABEL = {
+      FDD: "FDD",
+      TDD: "TDD",
+      "test design": "Test design",
+      "test cases": "Test cases"
+    };
+    const FILE_LABEL = {
+      "generated_fdd.pdf": "FDD PDF",
+      "generated_tdd.pdf": "TDD PDF",
+      "generated_test_design.pdf": "Test design PDF",
+      "generated_test_cases.xlsx": "Test cases Excel"
+    };
+    const login = document.getElementById("login");
+    const app = document.getElementById("app");
+    const logout = document.getElementById("logout");
+    const banner = document.getElementById("banner");
+    const storyBox = document.getElementById("story");
+    const generate = document.getElementById("generate");
+    const newStoryButton = document.getElementById("new-story");
+    const runList = document.getElementById("run-list");
+    const stages = document.getElementById("stages");
+    const runError = document.getElementById("run-error");
+    const log = document.getElementById("log");
+    const files = document.getElementById("files");
+    let selectedId = "";
+    let followJob = false;
+    let jobRunning = false;
+    let timer = null;
+    const STAGE_PROGRESS = {
+      FDD: ["fdd_done", "fdd_total"],
+      TDD: ["tdd_done", "tdd_total"],
+      "test design": ["design_done", "design_total"],
+      "test cases": ["cases_done", "cases_total"]
+    };
+    let viewedRun = null;
+    let barTimer = null;
+    const stageCreeps = {};
+    const stageClocks = {};
+
+    function syncGenerate() {
+      generate.disabled = jobRunning || !storyBox.value.trim();
+    }
+
+    function showError(node, message) {
+      node.textContent = message || "";
+      node.classList.toggle("hidden", !message);
+    }
+
+    async function api(path, options) {
+      const response = await fetch(path, options);
+      const text = await response.text();
+      let data = {};
+      if (text) {
+        try { data = JSON.parse(text); } catch (err) { data = { detail: text }; }
+      }
+      if (!response.ok) {
+        const message = data.detail || "Request failed.";
+        const error = new Error(typeof message === "string" ? message : JSON.stringify(message));
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    function stageName(run) {
+      let current = run && run.stage;
+      const running = run && run.status === "running";
+      if (running && (!current || current === "Starting")) current = "FDD";
+      return current || "";
+    }
+
+    function stageActive(run) {
+      return !!(run && run.status === "running" && STAGE_PROGRESS[stageName(run)]);
+    }
+
+    function stagePercent(run, stage, now) {
+      const fields = STAGE_PROGRESS[stage];
+      const done = Number(run && run[fields[0]]);
+      const total = Number(run && run[fields[1]]);
+      const runKey = String((run && (run.id || run.run_id)) || "live");
+      let creep = stageCreeps[stage] || { runKey: "", key: "", from: 0, at: 0, shown: 0 };
+      if (creep.runKey !== runKey) creep = { runKey, key: "", from: 0, at: now, shown: 0 };
+      if (total > 0 && Number.isFinite(done)) {
+        const committed = Math.min(1, done / total);
+        const ceiling = Math.min(0.99, (Math.min(done, total) + 0.85) / total);
+        const key = runKey + ":" + done;
+        if (creep.key !== key) {
+          const from = creep.key
+            ? Math.min(ceiling, Math.max(committed, creep.shown || 0))
+            : committed;
+          creep = { runKey, key, from, at: now, shown: from };
+        }
+        const moved = Math.min(1, (now - creep.at) / 18000);
+        creep.shown = creep.from + (ceiling - creep.from) * moved;
+        stageCreeps[stage] = creep;
+        return Math.max(1, Math.round(Math.min(0.99, creep.shown) * 100));
+      }
+      const clockKey = runKey + ":" + stage;
+      if (!stageClocks[clockKey]) {
+        const parsed = stage === "FDD" ? Date.parse((run && run.created_at) || "") : NaN;
+        stageClocks[clockKey] = Number.isFinite(parsed) ? parsed : now;
+      }
+      const seconds = Math.max(0, (now - stageClocks[clockKey]) / 1000);
+      creep.shown = Math.min(0.92, 1 - Math.exp(-seconds / 70));
+      creep.runKey = runKey;
+      stageCreeps[stage] = creep;
+      return Math.max(1, Math.round(creep.shown * 100));
+    }
+
+    function paintStageBar(run) {
+      const fill = stages.querySelector(".bar-fill");
+      const pct = stages.querySelector(".pct");
+      const current = stageName(run);
+      if (!fill || !pct || !stageActive(run)) return;
+      const percent = stagePercent(run, current, Date.now());
+      fill.style.width = percent + "%";
+      pct.textContent = percent + "%";
+    }
+
+    function syncBarTimer(run) {
+      if (stageActive(run)) {
+        if (!barTimer) barTimer = setInterval(() => paintStageBar(viewedRun), 400);
+        return;
+      }
+      if (barTimer) clearInterval(barTimer);
+      barTimer = null;
+    }
+
+    function syncNewStory(run) {
+      const finished = run && (run.status === "succeeded" || run.status === "failed");
+      newStoryButton.classList.toggle("hidden", jobRunning || !finished);
+    }
+
+    function renderStages(run) {
+      let current = stageName(run);
+      const failed = run && run.status === "failed";
+      const succeeded = run && run.status === "succeeded";
+      const running = run && run.status === "running";
+      const currentIndex = STAGES.indexOf(current);
+      if (stages.children.length !== STAGES.length) stages.replaceChildren();
+      STAGES.forEach((name, index) => {
+        let pill = stages.children[index];
+        if (!pill) {
+          pill = document.createElement("span");
+          stages.appendChild(pill);
+        }
+        const showBar = running && current === name && !!STAGE_PROGRESS[name];
+        pill.className = "pill";
+        if (succeeded || (currentIndex > index)) pill.classList.add("done");
+        else if (current === name && failed) pill.classList.add("failed");
+        else if (current === name) pill.classList.add("current");
+        if (showBar) {
+          pill.classList.add("progress");
+          if (!pill.querySelector(".bar-fill")) {
+            pill.replaceChildren();
+            const label = document.createElement("span");
+            label.className = "pill-name";
+            label.textContent = STAGE_LABEL[name];
+            const bar = document.createElement("span");
+            bar.className = "bar";
+            const fill = document.createElement("span");
+            fill.className = "bar-fill";
+            bar.appendChild(fill);
+            const pct = document.createElement("span");
+            pct.className = "pct";
+            pill.append(label, bar, pct);
+          }
+          paintStageBar(run);
+        } else if (pill.querySelector(".bar") || pill.textContent !== STAGE_LABEL[name]) {
+          pill.replaceChildren();
+          pill.textContent = STAGE_LABEL[name];
+        }
+      });
+    }
+
+    function renderFiles(run) {
+      files.replaceChildren();
+      if (!run || !run.id) return;
+      (run.files || []).forEach((name) => {
+        const link = document.createElement("a");
+        link.className = "file";
+        link.href = "/api/runs/" + run.id + "/files/" + name;
+        link.textContent = FILE_LABEL[name] || name;
+        files.appendChild(link);
+      });
+    }
+
+    function liveId(job) {
+      return (job && (job.run_id || job.id)) || "";
+    }
+
+    function renderRun(run, job) {
+      const viewingLive = !run || (liveId(job) && run.id === liveId(job));
+      const active = (job && job.status === "running" && viewingLive) ? job : run;
+      if (job && job.status === "running") jobRunning = true;
+      else if (!job || job.status === "idle" || job.status === "succeeded" || job.status === "failed") jobRunning = false;
+      syncGenerate();
+      const when = active && active.created_at ? active.created_at.replace("T", " ").slice(0, 16) : "";
+      document.getElementById("progress-title").textContent = when ? "Progress · " + when : "Progress";
+      viewedRun = active && active.status !== "idle" ? active : null;
+      renderStages(viewedRun);
+      syncBarTimer(viewedRun);
+      syncNewStory(viewedRun);
+      showError(runError, active && active.error);
+      log.textContent = (active && active.log) || "";
+      log.classList.toggle("hidden", !log.textContent);
+      const shown = (run && run.id) ? run : active;
+      if (shown && !shown.id && shown.run_id) shown.id = shown.run_id;
+      renderFiles(shown);
+      showError(banner, "");
+    }
+
+    async function refreshList(selected) {
+      const data = await api("/api/runs");
+      runList.replaceChildren();
+      (data.runs || []).forEach((run) => {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        if (run.id === selected) button.setAttribute("aria-current", "true");
+        const title = document.createElement("strong");
+        title.textContent = run.story_preview || run.id;
+        const when = document.createElement("span");
+        when.textContent = (run.created_at || "").replace("T", " ").slice(0, 16);
+        button.append(title, when);
+        button.addEventListener("click", () => openRun(run.id));
+        item.appendChild(button);
+        runList.appendChild(item);
+      });
+    }
+
+    async function openRun(id) {
+      followJob = false;
+      selectedId = id;
+      const run = await api("/api/runs/" + id);
+      const job = await api("/api/job");
+      if (!storyBox.value.trim()) storyBox.value = run.story || "";
+      renderRun(run, job);
+      await refreshList(id);
+      if (job.status === "running") schedule(); else stop();
+    }
+
+    function schedule() {
+      if (timer) return;
+      timer = setInterval(poll, 2000);
+    }
+
+    function stop() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    }
+
+    async function poll() {
+      const job = await api("/api/job");
+      const currentId = liveId(job);
+      if (followJob && currentId) selectedId = currentId;
+      let run = null;
+      if (selectedId) {
+        try { run = await api("/api/runs/" + selectedId); } catch (err) { run = null; }
+      }
+      renderRun(run, job);
+      await refreshList(selectedId);
+      if (!job || job.status === "idle" || job.status === "succeeded" || job.status === "failed") {
+        followJob = false;
+        jobRunning = false;
+        syncGenerate();
+        stop();
+      }
+    }
+
+    function showApp(signedIn) {
+      login.classList.toggle("hidden", signedIn);
+      app.classList.toggle("hidden", !signedIn);
+      logout.classList.toggle("hidden", !signedIn);
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const error = document.getElementById("login-error");
+      showError(error, "");
+      try {
+        await api("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: document.getElementById("password").value })
+        });
+        showApp(true);
+        renderStages(null);
+        await refreshList("");
+      } catch (err) {
+        showError(error, err.message);
+      }
+    });
+
+    logout.addEventListener("click", async () => {
+      stop();
+      if (barTimer) clearInterval(barTimer);
+      barTimer = null;
+      await api("/api/logout", { method: "POST" });
+      showApp(false);
+    });
+
+    storyBox.addEventListener("input", () => syncGenerate());
+
+    newStoryButton.addEventListener("click", async () => {
+      if (jobRunning) return;
+      followJob = false;
+      selectedId = "";
+      storyBox.value = "";
+      viewedRun = null;
+      syncGenerate();
+      syncNewStory(null);
+      document.getElementById("progress-title").textContent = "Progress";
+      renderStages(null);
+      syncBarTimer(null);
+      showError(runError, "");
+      showError(banner, "");
+      log.textContent = "";
+      log.classList.add("hidden");
+      files.replaceChildren();
+      storyBox.focus();
+      try { await refreshList(""); } catch (err) { showError(banner, err.message); }
+    });
+
+    generate.addEventListener("click", async () => {
+      if (jobRunning) return;
+      showError(banner, "");
+      jobRunning = true;
+      syncGenerate();
+      try {
+        await api("/api/runs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ story: storyBox.value })
+        });
+        followJob = true;
+        selectedId = "";
+        schedule();
+        await poll();
+      } catch (err) {
+        if (err.status === 409) {
+          jobRunning = true;
+          syncGenerate();
+          schedule();
+          try { await poll(); } catch (pollErr) { showError(banner, pollErr.message); }
+          return;
+        }
+        jobRunning = false;
+        syncGenerate();
+        showError(banner, err.message);
+      }
+    });
+
+    api("/api/session").then(async (session) => {
+      if (!session.ok) {
+        showApp(false);
+        if (session.detail) showError(document.getElementById("login-error"), session.detail);
+        return;
+      }
+      showApp(true);
+      renderStages(null);
+      const job = await api("/api/job");
+      if (job.status === "running") {
+        followJob = true;
+        selectedId = job.run_id || "";
+        schedule();
+        await poll();
+        return;
+      }
+      await refreshList("");
+    }).catch((err) => {
+      showApp(false);
+      showError(document.getElementById("login-error"), err.message);
+    });
+  </script>
+</body>
+</html>

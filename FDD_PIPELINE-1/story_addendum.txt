@@ -1,0 +1,23 @@
+Title:
+Dynamic Pricing and Real-time Seat Management
+
+Description:
+As an airline revenue manager, I want to dynamically update flight pricing and seat availability in real-time based on market demand, so that I can maximize revenue, minimize unsold inventory, and improve customer satisfaction by offering competitive prices.
+
+Acceptance criteria:
+1. System updates prices within 5 minutes of a change in demand metrics.
+2. Seat availability is reflected in real-time within the booking system.
+3. Pricing adjustments adhere to predefined revenue management metrics and constraints.
+4. An audit log records all pricing and availability changes for review and compliance.
+
+Known constraints (from existing systems, not new requirements):
+- Aircraft capacity is already stored per flight and must bound available_seats.
+- Existing pricing policy already defines a price floor (cost) and ceiling; pricing adjustments must stay within it.
+- If audit logging is unavailable, reject the change rather than applying it without a record.
+- Revenue managers are scoped to their assigned routes, not all flights.
+- If a revenue manager's session expires mid-update, roll back any partial change entirely; nothing partially applied should ever be visible to downstream systems.
+- If two updates for the same flight conflict, reject the later one with a conflict error rather than silently overwriting the earlier one; the caller must re-fetch and retry.
+
+Additional information:
+- Client Name: Sabre Corporation
+- Module Name: Airline Ticketing
